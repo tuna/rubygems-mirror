@@ -17,7 +17,9 @@ document that looks like this:
 
   ---
   - from: http://gems.example.com # source repository URI
-    to: /path/to/mirror           # destination directory
+    to: /path/to/mirror           # temporary destination directory
+    bucket: bucket-name           # destination s3 bucket
+    region: us-east-1             # s3 region
     parallelism: 10               # use 10 threads for downloads
     retries: 3                    # retry 3 times if fail to download a gem, optional, def is 1. (no retry)
     delete: false                 # whether delete gems (if remote ones are removed),optional, default is false. 
@@ -39,23 +41,20 @@ Multiple sources and destinations may be specified.
     mirrors.each do |mir|
       raise "mirror missing 'from' field" unless mir.has_key? 'from'
       raise "mirror missing 'to' field" unless mir.has_key? 'to'
+      raise "mirror missing 'bucket' field" unless mir.has_key? 'bucket'
+      raise "mirror missing 'region' field" unless mir.has_key? 'region'
 
       get_from = mir['from']
-      save_to = File.expand_path mir['to']
+      save_to = mir['to']
+      bucket = mir['bucket']
+      region = mir['region']
       parallelism = mir['parallelism']
       retries = mir['retries'] || 1
       skiperror = mir['skiperror']
       delete = mir['delete']
 
-      raise "Directory not found: #{save_to}" unless File.exist? save_to
-      raise "Not a directory: #{save_to}" unless File.directory? save_to
-
-      mirror = Gem::Mirror.new(get_from, save_to, parallelism, retries, skiperror)
+      mirror = Gem::Mirror.new(get_from, save_to, bucket, region, parallelism, retries, skiperror)
       
-      Gem::Mirror::SPECS_FILES.each do |sf|
-        say "Fetching: #{mirror.from(sf)}"
-      end
-
       mirror.update_specs
 
       say "Total gems: #{mirror.gems.size}"

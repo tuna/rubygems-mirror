@@ -1,6 +1,7 @@
 require 'rubygems'
 require 'fileutils'
 require 'rubygems/mirror/version'
+require 'aws-sdk-s3'
 
 class Gem::Mirror
   autoload :Fetcher, 'rubygems/mirror/fetcher'
@@ -13,9 +14,11 @@ class Gem::Mirror
 
   RUBY = 'ruby'
 
-  def initialize(from = DEFAULT_URI, to = DEFAULT_TO, parallelism = nil, retries = nil, skiperror = nil)
+  def initialize(from = DEFAULT_URI, to = DEFAULT_TO, bucket = nil, region = nil, parallelism = nil, retries = nil, skiperror = nil)
+    @s3 = Aws::S3::Resource.new(region: region)
+    @bucket = @s3.bucket(bucket)
     @from, @to = from, to
-    @fetcher = Fetcher.new :retries => retries, :skiperror => skiperror
+    @fetcher = Fetcher.new @bucket, :retries => retries, :skiperror => skiperror
     @pool = Pool.new(parallelism || 10)
   end
 
@@ -30,10 +33,18 @@ class Gem::Mirror
   def update_specs
     SPECS_FILES.each do |sf|
       sfz = "#{sf}.gz"
-
+      puts "Fetching: #{from(sfz)}"
       specz = to(sfz)
-      @fetcher.fetch(from(sfz), specz)
+      @fetcher.fetch(from(sfz), specz, s3=false)
       open(to(sf), 'wb') { |f| f << Gem::Util.gunzip(File.binread(specz)) }
+
+      puts "Uploading: #{sfz}"
+      dst = @bucket.object(sfz)
+      dst.upload_file(to(sfz), acl: 'public-read')
+
+      puts "Uploading: #{sf}"
+      dst = @bucket.object(sf)
+      dst.upload_file(to(sf), acl: 'public-read')
     end
   end
 
@@ -69,11 +80,11 @@ class Gem::Mirror
   end
 
   def existing_gems
-    Dir.glob(to('gems', '*.gem'), File::FNM_DOTMATCH).entries.map { |f| File.basename(f) }
+    @bucket.objects(prefix: 'gems').collect(&:key).map { |f| File.basename(f) }
   end
 
   def existing_gemspecs
-    Dir[to("quick/Marshal.#{Gem.marshal_version}", '*.rz')].entries.map { |f| File.basename(f) }
+    @bucket.objects(prefix: "quick/Marshal.#{Gem.marshal_version}").collect(&:key).map { |f| File.basename(f) }
   end
 
   def gems_to_fetch
@@ -91,7 +102,7 @@ class Gem::Mirror
   def update_gems
     gems_to_fetch.each do |g|
       @pool.job do
-        @fetcher.fetch(from('gems', g), to('gems', g))
+        @fetcher.fetch(from('gems', g), "gems/#{g}")
         yield if block_given?
       end
     end
@@ -99,7 +110,7 @@ class Gem::Mirror
     if ENV["RUBYGEMS_MIRROR_ONLY_LATEST"].to_s.upcase != "TRUE"
       gemspecs_to_fetch.each do |g_spec|
         @pool.job do
-          @fetcher.fetch(from("quick/Marshal.#{Gem.marshal_version}", g_spec), to("quick/Marshal.#{Gem.marshal_version}", g_spec))
+          @fetcher.fetch(from("quick/Marshal.#{Gem.marshal_version}", g_spec), "quick/Marshal.#{Gem.marshal_version}/#{g_spec}")
           yield if block_given?
         end
       end
@@ -111,7 +122,8 @@ class Gem::Mirror
   def delete_gems
     gems_to_delete.each do |g|
       @pool.job do
-        File.delete(to('gems', g))
+        obj = @bucket.object("gems/${g}")
+        obj.delete()
         yield if block_given?
       end
     end

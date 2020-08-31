@@ -5,7 +5,7 @@ class Gem::Mirror::Fetcher
   # TODO  beef
   class Error < StandardError; end
 
-  def initialize(opts = {})
+  def initialize(bucket = nil, opts = {})
     @http = 
       if defined?(Net::HTTP::Persistent::DEFAULT_POOL_SIZE)
         Net::HTTP::Persistent.new(name: self.class.name, proxy: :ENV)
@@ -14,6 +14,7 @@ class Gem::Mirror::Fetcher
         Net::HTTP::Persistent.new(self.class.name, :ENV)
       end
 
+    @bucket = bucket
     @opts = opts
 
     # default opts
@@ -23,7 +24,7 @@ class Gem::Mirror::Fetcher
 
   # Fetch a source path under the base uri, and put it in the same or given
   # destination path under the base path.
-  def fetch(uri, path)
+  def fetch(uri, path, s3 = true)
     modified_time = File.exist?(path) && File.stat(path).mtime.rfc822
 
     req = Net::HTTP::Get.new URI.parse(uri).path
@@ -37,7 +38,7 @@ class Gem::Mirror::Fetcher
       # is returned so the whole mirror operation doesn't abort prematurely.
       begin
         @http.request URI(uri), req do |resp|
-          return handle_response(resp, path)
+          return handle_response(resp, path, s3)
         end
       rescue Exception => e
         warn "Error connecting to #{uri.to_s}: #{e.message}"
@@ -51,13 +52,13 @@ class Gem::Mirror::Fetcher
 
   # Handle an http response, follow redirects, etc. returns true if a file was
   # downloaded, false if a 304. Raise Error on unknown responses.
-  def handle_response(resp, path)
+  def handle_response(resp, path, s3)
     case resp.code.to_i
     when 304
     when 301, 302
-      fetch resp['location'], path
+      fetch resp['location'], path, s3
     when 200
-      write_file(resp, path)
+      write_file(resp, path, s3)
     when 403, 404
       raise Error,"#{resp.code} on #{File.basename(path)}"
     else
@@ -68,16 +69,30 @@ class Gem::Mirror::Fetcher
 
   # Efficiently writes an http response object to a particular path. If there
   # is an error, it will remove the target file.
-  def write_file(resp, path)
-    FileUtils.mkdir_p File.dirname(path)
-    File.open(path, 'wb') do |output|
-      resp.read_body { |chunk| output << chunk }
+  def write_file(resp, path, s3)
+    if s3
+      begin
+        obj = @bucket.object(path)
+        obj.upload_stream :acl => 'public-read' do |dest|
+          resp.read_body { |chunk| dest << chunk }
+        end
+      ensure
+        obj = @bucket.object(path)
+        obj.delete() rescue nil if $!
+      end
+    else
+      begin
+        FileUtils.mkdir_p File.dirname(path)
+        File.open(path, 'wb') do |output|
+          resp.read_body { |chunk| output << chunk }
+      ensure
+        # cleanup incomplete files, rescue perm errors etc, they're being
+        # raised already.
+        File.delete(path) rescue nil if $!
+        end
+      end
     end
     true
-  ensure
-    # cleanup incomplete files, rescue perm errors etc, they're being
-    # raised already.
-    File.delete(path) rescue nil if $!
   end
 
 end
