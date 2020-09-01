@@ -80,11 +80,11 @@ class Gem::Mirror
   end
 
   def existing_gems
-    @bucket.objects(prefix: 'gems').collect(&:key).map { |f| File.basename(f) }
+    @bucket.objects(prefix: 'rubygems/gems').collect(&:key).map { |f| File.basename(f) }
   end
 
   def existing_gemspecs
-    @bucket.objects(prefix: "quick/Marshal.#{Gem.marshal_version}").collect(&:key).map { |f| File.basename(f) }
+    @bucket.objects(prefix: "rubygems/quick/Marshal.#{Gem.marshal_version}").collect(&:key).map { |f| File.basename(f) }
   end
 
   def gems_to_fetch
@@ -102,7 +102,7 @@ class Gem::Mirror
   def update_gems
     gems_to_fetch.each do |g|
       @pool.job do
-        @fetcher.fetch(from('gems', g), "gems/#{g}")
+        @fetcher.fetch(from('gems', g), "rubygems/gems/#{g}")
         yield if block_given?
       end
     end
@@ -110,7 +110,7 @@ class Gem::Mirror
     if ENV["RUBYGEMS_MIRROR_ONLY_LATEST"].to_s.upcase != "TRUE"
       gemspecs_to_fetch.each do |g_spec|
         @pool.job do
-          @fetcher.fetch(from("quick/Marshal.#{Gem.marshal_version}", g_spec), "quick/Marshal.#{Gem.marshal_version}/#{g_spec}")
+          @fetcher.fetch(from("quick/Marshal.#{Gem.marshal_version}", g_spec), "rubygems/quick/Marshal.#{Gem.marshal_version}/#{g_spec}")
           yield if block_given?
         end
       end
@@ -122,7 +122,7 @@ class Gem::Mirror
   def delete_gems
     gems_to_delete.each do |g|
       @pool.job do
-        obj = @bucket.object("gems/${g}")
+        obj = @bucket.object("rubygems/gems/${g}")
         obj.delete()
         yield if block_given?
       end
