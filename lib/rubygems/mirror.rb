@@ -39,12 +39,12 @@ class Gem::Mirror
       open(to(sf), 'wb') { |f| f << Gem::Util.gunzip(File.binread(specz)) }
 
       puts "Uploading: #{sfz}"
-      dst = @bucket.object(sfz)
-      dst.upload_file(`rubygems/#{to(sfz)}`, acl: 'public-read')
+      dst = @bucket.object("rubygems/#{sfz}")
+      dst.upload_file(to(sfz), acl: 'public-read')
 
       puts "Uploading: #{sf}"
-      dst = @bucket.object(sf)
-      dst.upload_file(`rubygems/#{to(sf)}`, acl: 'public-read')
+      dst = @bucket.object("rubygems/#{sf}")
+      dst.upload_file(to(sf), acl: 'public-read')
     end
   end
 
