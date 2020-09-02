@@ -60,15 +60,20 @@ Multiple sources and destinations may be specified.
 
       logger.info "Total gems: #{mirror.gems.size}"
 
-      num_to_fetch = mirror.gems_to_fetch.size
+      num_to_fetch = mirror.gems_to_fetch.size + mirror.gemspecs_to_fetch.size
 
-      progress = ui.progress_reporter num_to_fetch,
-                                  "Fetching #{num_to_fetch} gems and #{mirror.gemspecs_to_fetch.size} gemspecs"
+      logger.info "Fetching #{mirror.gems_to_fetch.size} gems and #{mirror.gemspecs_to_fetch.size} gemspecs"
 
-      trap(:INFO) { puts "Fetched: #{progress.count}/#{num_to_fetch}" } if SUPPORTS_INFO_SIGNAL
+      gems_fetched = 0
+      gems_fetched_percent = -1
 
-      mirror.update_gems { progress.updated true }
-
+      mirror.update_gems { 
+        gems_fetched = gems_fetched + 1
+        if gems_fetched * 100 / num_to_fetch != gems_fetched_percent
+          gems_fetched_percent = gems_fetched * 100 / num_to_fetch
+          logger.info "Fetched #{gems_fetched}/#{num_to_fetch}=#{gems_fetched_percent}%"
+        end
+      }
 
       if delete
         num_to_delete = mirror.gems_to_delete.size
