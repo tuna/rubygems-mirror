@@ -15,6 +15,7 @@ class Gem::Mirror
   RUBY = 'ruby'
 
   def initialize(from = DEFAULT_URI, to = DEFAULT_TO, bucket = nil, region = nil, parallelism = nil, retries = nil, skiperror = nil)
+    @logger = Logger.new($stdout)
     @s3 = Aws::S3::Resource.new(region: region)
     @bucket = @s3.bucket(bucket)
     @from, @to = from, to
@@ -33,16 +34,16 @@ class Gem::Mirror
   def update_specs
     SPECS_FILES.each do |sf|
       sfz = "#{sf}.gz"
-      puts "Fetching: #{from(sfz)}"
+      @logger.info "Fetching: #{from(sfz)}"
       specz = to(sfz)
       @fetcher.fetch(from(sfz), specz, s3=false)
       open(to(sf), 'wb') { |f| f << Gem::Util.gunzip(File.binread(specz)) }
 
-      puts "Uploading: #{sfz}"
+      @logger.info "Uploading: #{sfz}"
       dst = @bucket.object("rubygems/#{sfz}")
       dst.upload_file(to(sfz), acl: 'public-read')
 
-      puts "Uploading: #{sf}"
+      @logger.info "Uploading: #{sf}"
       dst = @bucket.object("rubygems/#{sf}")
       dst.upload_file(to(sf), acl: 'public-read')
     end

@@ -6,6 +6,7 @@ class Gem::Mirror::Fetcher
   class Error < StandardError; end
 
   def initialize(bucket = nil, opts = {})
+    @logger = Logger.new($stdout)
     @http = 
       if defined?(Net::HTTP::Persistent::DEFAULT_POOL_SIZE)
         Net::HTTP::Persistent.new(name: self.class.name, proxy: :ENV)
@@ -41,7 +42,7 @@ class Gem::Mirror::Fetcher
           return handle_response(resp, path, s3)
         end
       rescue Exception => e
-        warn "Error connecting to #{uri.to_s}: #{e.message}"
+        @logger.warn "Error connecting to #{uri.to_s}: #{e.message}"
       end
     rescue Error
       retries -= 1

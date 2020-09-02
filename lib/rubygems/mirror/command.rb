@@ -30,6 +30,7 @@ Multiple sources and destinations may be specified.
   end
 
   def execute
+    logger = Logger.new($stdout)
     config_file = File.join Gem.user_home, '.gem', '.mirrorrc'
 
     raise "Config file #{config_file} not found" unless File.exist? config_file
@@ -57,7 +58,7 @@ Multiple sources and destinations may be specified.
       
       mirror.update_specs
 
-      say "Total gems: #{mirror.gems.size}"
+      logger.info "Total gems: #{mirror.gems.size}"
 
       num_to_fetch = mirror.gems_to_fetch.size
 
