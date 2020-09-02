@@ -30,6 +30,8 @@ Multiple sources and destinations may be specified.
   end
 
   def execute
+    # always flush stdout
+    $stdout.sync = true
     logger = Logger.new($stdout)
     config_file = File.join Gem.user_home, '.gem', '.mirrorrc'
 
