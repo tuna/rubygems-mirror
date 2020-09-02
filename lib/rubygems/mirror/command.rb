@@ -63,7 +63,7 @@ Multiple sources and destinations may be specified.
       num_to_fetch = mirror.gems_to_fetch.size
 
       progress = ui.progress_reporter num_to_fetch,
-                                  "Fetching #{num_to_fetch} gems"
+                                  "Fetching #{num_to_fetch} gems and #{mirror.gemspecs_to_fetch.size} gemspecs"
 
       trap(:INFO) { puts "Fetched: #{progress.count}/#{num_to_fetch}" } if SUPPORTS_INFO_SIGNAL
 

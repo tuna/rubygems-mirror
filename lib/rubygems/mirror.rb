@@ -81,23 +81,28 @@ class Gem::Mirror
   end
 
   def existing_gems
+    @logger.info "Fetching existing gems"
     @bucket.objects(prefix: 'rubygems/gems').collect(&:key).map { |f| File.basename(f) }
   end
 
   def existing_gemspecs
+    @logger.info "Fetching existing gemspecs"
     @bucket.objects(prefix: "rubygems/quick/Marshal.#{Gem.marshal_version}").collect(&:key).map { |f| File.basename(f) }
   end
 
   def gems_to_fetch
-    gems - existing_gems
+    @gems_to_fetch = gems - existing_gems unless @gems_to_fetch
+    @gems_to_fetch
   end
 
   def gemspecs_to_fetch
-    gems.map { |g| "#{g}spec.rz" } - existing_gemspecs
+    @gemspecs_to_fetch = gems.map { |g| "#{g}spec.rz" } - existing_gemspecs unless @gemspecs_to_fetch
+    @gemspecs_to_fetch
   end
 
   def gems_to_delete
-    existing_gems - gems
+    @gems_to_delete = existing_gems - gems unless @gems_to_delete
+    @gems_to_delete
   end
 
   def update_gems
