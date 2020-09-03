@@ -14,10 +14,11 @@ class Gem::Mirror
 
   RUBY = 'ruby'
 
-  def initialize(from = DEFAULT_URI, to = DEFAULT_TO, bucket = nil, region = nil, parallelism = nil, retries = nil, skiperror = nil)
+  def initialize(from = DEFAULT_URI, to = DEFAULT_TO, bucket = nil, region = nil, acl = nil, parallelism = nil, retries = nil, skiperror = nil)
     @logger = Logger.new($stdout)
     @s3 = Aws::S3::Resource.new(region: region)
     @bucket = @s3.bucket(bucket)
+    @acl = acl
     @from, @to = from, to
     @fetcher = Fetcher.new @bucket, :retries => retries, :skiperror => skiperror
     @pool = Pool.new(parallelism || 10)
@@ -41,11 +42,11 @@ class Gem::Mirror
 
       @logger.info "Uploading: #{sfz}"
       dst = @bucket.object("rubygems/#{sfz}")
-      dst.upload_file(to(sfz), acl: 'public-read')
+      dst.upload_file(to(sfz), acl: @acl)
 
       @logger.info "Uploading: #{sf}"
       dst = @bucket.object("rubygems/#{sf}")
-      dst.upload_file(to(sf), acl: 'public-read')
+      dst.upload_file(to(sf), acl: @acl)
     end
   end
 

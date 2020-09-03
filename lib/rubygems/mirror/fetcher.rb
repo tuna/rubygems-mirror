@@ -5,7 +5,7 @@ class Gem::Mirror::Fetcher
   # TODO  beef
   class Error < StandardError; end
 
-  def initialize(bucket = nil, opts = {})
+  def initialize(bucket = nil, acl = nil, opts = {})
     @logger = Logger.new($stdout)
     @http = 
       if defined?(Net::HTTP::Persistent::DEFAULT_POOL_SIZE)
@@ -15,6 +15,7 @@ class Gem::Mirror::Fetcher
         Net::HTTP::Persistent.new(self.class.name, :ENV)
       end
 
+    @acl = acl
     @bucket = bucket
     @opts = opts
 
@@ -74,7 +75,7 @@ class Gem::Mirror::Fetcher
     if s3
       begin
         obj = @bucket.object(path)
-        obj.upload_stream :acl => 'public-read' do |dest|
+        obj.upload_stream :acl => @acl do |dest|
           resp.read_body { |chunk| dest << chunk }
         end
       ensure

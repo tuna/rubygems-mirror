@@ -19,6 +19,7 @@ document that looks like this:
   - from: http://gems.example.com # source repository URI
     to: /path/to/mirror           # temporary destination directory
     bucket: bucket-name           # destination s3 bucket
+    acl: private                  # s3 object acl, defaults to private
     region: us-east-1             # s3 region
     parallelism: 10               # use 10 threads for downloads
     retries: 3                    # retry 3 times if fail to download a gem, optional, def is 1. (no retry)
@@ -51,12 +52,13 @@ Multiple sources and destinations may be specified.
       save_to = mir['to']
       bucket = mir['bucket']
       region = mir['region']
+      acl = mir['acl'] || 'private'
       parallelism = mir['parallelism']
       retries = mir['retries'] || 1
       skiperror = mir['skiperror']
       delete = mir['delete']
 
-      mirror = Gem::Mirror.new(get_from, save_to, bucket, region, parallelism, retries, skiperror)
+      mirror = Gem::Mirror.new(get_from, save_to, bucket, region, acl, parallelism, retries, skiperror)
       
       mirror.update_specs
 
