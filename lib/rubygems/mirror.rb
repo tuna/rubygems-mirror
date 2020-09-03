@@ -20,7 +20,7 @@ class Gem::Mirror
     @bucket = @s3.bucket(bucket)
     @acl = acl
     @from, @to = from, to
-    @fetcher = Fetcher.new @bucket, :retries => retries, :skiperror => skiperror
+    @fetcher = Fetcher.new @bucket, acl, :retries => retries, :skiperror => skiperror
     @pool = Pool.new(parallelism || 10)
   end
 
